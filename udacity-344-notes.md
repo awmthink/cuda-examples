@@ -74,7 +74,7 @@
 - Stencil：每个输出位置，都访问输入中一个模板对应的位置
 - Transpose：输入输出一一对应，但在2维结构上，是转置的
 
-<img src="./images/image-20210502160734412.png" alt="Parallel Communication Patterns" style="zoom:50%;" />
+![Parallel Communication Patterns](./images/image-20210502160734412.png)
 
 ### GPU架构
 
@@ -161,7 +161,7 @@
 - 使用`pinned memory`
 - 使用MultiStream和异步拷贝。不同stream上内存操作与核函数执行都是可以异步的，同一个stream上的拷贝与核函数执行是排队的。
 
-## Parallel Computing Patterns
+## Lesson 6 Parallel Computing Patterns
 
 对于GPU编程来说，最大的挑战在于，对之前从来没有见过的问题或求解模式进行并行化。所以本节的主要内容，就是看一些有趣的问题，如何被并行化的。
 
@@ -181,7 +181,7 @@ multipole算法：[论文](https://aip.scitation.org/doi/pdf/10.1063/1.4773727)�
 
 朴素来实现的话，我们都使用global memory，那么在我们计算$N\times N$的Nbody的关系矩阵时，每个元素都需要被我们反复多次的读入内存，如果我们是使用$N^2$的线程，每个线程计算一对pair之间的力，那每个元素会被从global memory中加载2N次，分别是该序列在$N\times N$矩阵中对应的那一行和那一列。
 
-<img src="./images/image-20211013200232534.png" alt="image-20211013200232534" style="zoom:33%;" />
+![N-Body Tiling](./images/image-20211013200232534.png)
 
 将整个矩阵划分为网格，每个网格我们称之为一个Tile，它的大小是$p\times p$，正常情况下，我们要计算这个网络内的矩阵值的话，我们需要把这个网格涉及到的元素从global memory加载，每个元素都要被加载$2p$次。
 
@@ -191,11 +191,11 @@ multipole算法：[论文](https://aip.scitation.org/doi/pdf/10.1063/1.4773727)�
 
 另外一种方式是是只使用$p$个线程，每个线程在横向上计算，使用一个`for`循环。
 
-<img src="./images/image-20211013200956911.png" alt="image-20211013200956911" style="zoom:33%;" />
+![Tile Calculation](./images/image-20211013200956911.png)
 
 这种模式下，只需要将sourceParams加载为sharedMemory中，而dstParams不需要共享了。也不需要在不同线程间来汇总单独的力。
 
-<img src="./images/image-20211013201208325.png" alt="image-20211013201208325" style="zoom:33%;" />
+![p Thread Tiling](./images/image-20211013201208325.png)
 
 这种模式降低了整个程序的并行度，但当我们解决的Nbody问题的N很大的时候，我们对线程的使用率是很高的，这种模式也能达到很高的计算吞吐。
 
@@ -203,13 +203,13 @@ multipole算法：[论文](https://aip.scitation.org/doi/pdf/10.1063/1.4773727)�
 
 如果网格太小，那么对于global memory的访问压力就会比较大。
 
-<img src="./images/image-20211013202132264.png" alt="image-20211013202132264" style="zoom:33%;" />
+![small p vs big p](./images/image-20211013202132264.png)
 
  这个例子说明了，在一些问题上，适当让每个线程做更多的事，减少并发程度，可能会取得更好的效果。
 
 ### 稀疏向量乘法实现优化SpMV
 
-<img src="./images/image-20211013203327645.png" alt="image-20211013203327645" style="zoom:33%;" />
+![csr scalar kernel](./images/image-20211013203327645.png)
 
 上面的代码计算的是$y += Mx$，其中$M$是稀疏矩阵，$x$和$y$都是列向量。
 
@@ -219,13 +219,73 @@ multipole算法：[论文](https://aip.scitation.org/doi/pdf/10.1063/1.4773727)�
 
 这种情况下我们可以采用，每个线程只计算2个数乘法，然后用bacward inclusive SCAN SUM来计算每一行乘积的加和。这种算法对于每一行长度的变化就不敏感了。但这种算法需要线程间通信了。
 
-<img src="./images/image-20211013205004760.png" alt="image-20211013205004760" style="zoom:33%;" />
+![Elements Per Row](./images/image-20211013205004760.png)
 
 针对这个问题，比较学术的讨论可以参考：[Efficient Sparse Matrix-Vector Multiplication on CUDA](http://wnbell.com/blog/2008/12/01/efficient-sparse-matrix-vector-multiplication-on-cuda/)
 
-![image-20211013205241952](./images/image-20211013205241952.png)
+![Hybrid Approach](./images/image-20211013205241952.png)
 
 这个例子说明了2个优化思路：
 
 * 需要让线程尽可能的busy，一个wapper里的线程不能太发散
 * 管理通信开销同样重要
+
+### 图的广度优先搜索
+
+对于一个图来说，如果每个顶点相连接的边很多，则这个图是一个稠密的图，相反，如果边很少，则是一个稀疏的图。
+
+现实中的很多问题都可以用图模型来建模，比如整个Web可以看成一个超大的图，页面就是顶点，而页面之间的超连接关系构成了边；人的社交关系就是一个很大的图，顶点就是每个人，边则是两个人认识，互为好友关系。
+
+对于图结构，最广泛的操作就是对图中所有的结点的遍历，比如对于Web，我们的爬虫程序实现就是在执行对于整个Web图网络的遍历。对于图的遍历一般有2种方法，深度优先（DFS：Depth First）和广义优先（BFS：Breadth Frist）。
+
+![DFS vs BFS](./images/image-20211014191022374.png)
+
+DFS算法需用的缓存会少一些，而BFS则有较高的并行度，但对中间存储要求高一些。
+
+对于BFS来说，我们比较关心的是从root结点来使，遍历整个图的深度。对于n个结点的图来说，最大可能的深度为n-1（串连的形状），则小可能的深度为1（一个星状发散的形状）。
+
+![Depth of Graph](./images/image-20211014191557469.png)
+
+显示当图最有最小深度时，这个图的结构是最合适并行化遍历的。
+
+接下来我们研究如何设计一个好的并行化算法来执行BFS。我们希望这个算法具有以下的特性：
+
+* 并行度高
+* 合并内存访问
+* 最小化线程发散
+* 容易实现
+
+先来看第一种算法，这个算法的设计比较一般。
+
+首先我们使用一个数组v[n]代表n个结点的深度，根节点的深度为0，初始状态下都为-1，我们可以用这个数组也样表示这个结点有没有被访问过。用一个pair来表示边，比如下面的图，我们可以表示为：
+
+Vertices：0, 1, 2, 3, 4, 5, 6
+
+Edges：（0,1), (1,2), (2,3), (3,4), (2,5), (5,6)
+
+![image-20211014193708009](./images/image-20211014193708009.png)
+
+那我们遍历的算法可以描述为以下：
+
+* 对整个图进行多次迭代，迭代次数，取决于图的最大深度
+* 每轮迭代，遍历所有的边，检查这条边的两个顶点的深度值v[first]和v[second]，如果有一个不为-1，另一个为-1，则将不为-1的那个顶点的度设置为不为-1顶点的深度+1。
+* 某轮迭代，所有的点的深度都不变化时，迭代结束。
+
+初始化每个顶点的度，入口顶点初始化为0。
+
+![image-20211014194113646](./images/image-20211014194113646.png)
+
+bfs的kernel函数，并行的处理每条边，然后看左右结点的度的情况。
+
+需要注意的是，这里可能会存在多个线程同时修改vertices的情况，按道理这里要加锁的，不知道代码里，为什么不加，课程中描述的是，可以忽略，因为重复赋值是没有关系的，因为多个线程只会赋值相同的值。
+
+![image-20211014194524972](./images/image-20211014194524972.png)
+
+结束迭代的代码逻辑，kernel代码中，如果有顶点的深度被修改了，就是把done设置为false，每一轮迭代kernel执行完，就会把done从device拷贝到host上。然后在再一轮迭代开始前，先设置为true。
+
+![image-20211014194223840](./images/image-20211014194223840.png)
+
+这个算法的并行度、内存访问、线程发散情况都不错，但是算法复杂度是O(VE)，复杂度较高。
+
+**另外一种算法**：
+

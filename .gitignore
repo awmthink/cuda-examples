@@ -4,3 +4,4 @@
 *.ptx
 *.cubin
 *.fatbin
+.DS_Store
