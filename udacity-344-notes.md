@@ -397,3 +397,168 @@ D数组表示的是每个顶点的度，它的长度就是顶点的个数，初�
 新算法的哈希表是有多个哈希表（每个哈希表一个HashFunction）组成，对于N个元素要往哈希表中添加，按顺序插入某一张表中，没有冲突，则插入到桶中，如果有冲突，则将原来桶中的元素挤出来，原来的元素，则向后一张哈希表中找位置，如果有冲突，则再把别人挤掉，直到最终都找到位置。
 
 它的好处就是在GPU可以对多个哈希表同时计算HashFunction并进行查找。
+
+## Lesson 7  Additional Parallel Computing Topics
+
+### Parallel Optimization Pattern
+
+7种并发编程模式：[Optimization and architecture effects on GPU](./papers/Optimization_and_architecture_effects_on_GPU_compu.pdf)
+
+#### Data layout transformation
+
+它的核心是重新整理数据的布局，以获取更好的内存性能。有一个叫Burst utilization的指标可以来衡量。
+
+这里举的例子是AoS（Array of Structure）-> SoA （Structure of Array）
+
+![image-20211108201314365](./images/image-20211108201314365.png)
+
+
+
+![image-20211108201407186](./images/image-20211108201407186.png)
+
+对于像上面这样的代码，SoA会更具有性能优势。
+
+![image-20211108201541986](./images/image-20211108201541986.png)
+
+#### Scatter-to-Gather transformation
+
+Scatter和Gather的区分：在Scatter中，线程是分别给输入数据的，每个线程再决定输出到某个输出位置上。而Gather，线程是分配给输出数据的，每个线程可能会读取多个输入位置。
+
+![image-20211108202128148](./images/image-20211108202128148.png)
+
+上面代码中Gather会更加高效，因为左边Scatter的代码，会涉及到要解决不同线程之间写冲突的问题。
+
+Gather: 会有很多重叠的读取
+
+Scatter: 可能会有很多冲突的写入
+
+#### Tiling
+
+在芯片的快速存储上（比如共享内存上）缓存那些会被重复读取的数据。比如我们对图片进行模糊，则我们一般会将图像分成一块一块的Tile，然后将这一块的数据加载到SharedMemory中，然后进行模糊处理。
+
+#### Privatization
+
+![image-20211108203123478](./images/image-20211108203123478.png)
+
+这个技术是指，当我们有多个线程都在写一些全局数据时，我们可以让每个线程独立拷贝一份全局数据进行私有化，这样就不会做一些线程间加锁与同步的事情。最后再用额外的线程来考虑每个线程上结果的合并。
+
+这一技术在直方图的作业中可以使用。
+
+#### Binning / Spatial Data Structures
+
+Binning：Build Data structure that map output locations to the relevant input data
+
+就是当我们不能明确我们对应位置的输入，需要哪些位置的输入时，我们可能需要把输入都遍历一遍，但这是巨大的计算浪费。所以Binning就是把input按一定的规则装到一个一个的Bin中，这个时候，我们计算输出时，只需要查看对应的一个或几个Bins就可以了。
+
+举个例子，我们要计算每个城市可能的门店附近300Km城市的人口之和，一般做法，我们需要检查每个城市和该门店的距离，然后把小于300Km的留下进行统计计算。
+
+![image-20211108204544857](./images/image-20211108204544857.png)
+
+使用Binning的方法，就是对整个地图划分300Km的网络。这样我们只需要在可能的网格中的检查对应的城市就可以了。
+
+![image-20211108204603697](./images/image-20211108204603697.png)
+
+
+
+#### Compaction
+
+![image-20211108205438779](./images/image-20211108205438779.png)
+
+Compaction做的事情就是，处理的数据中，只有一部分满足计算的条件，那么就会导致wrap中有大量线程是闲置的。优化的方法，就是把那些满足条件的数据单独挑选出来，拷贝到一块新空间中，然后再用较小的线程来进行运算。
+
+#### Regularization - load balancing
+
+正则化是指重新组织数据来减少线程之间任务的不平衡性。
+
+比如上面美国城市距离的例子，有一些网络里城市很少，而有一些网络中城市很多。
+
+### Libraries
+
+整个cuda编程或并行计算方面是个巨大的生态，在这个生态里，有NVDIA官方、第三方机构、商业组织、开源社区等都会有一些写好的，针对某一领域或通用的cuda库。
+
+这里列举一些比较好的库，它们具有以下的特点：
+
+1. 非常成熟稳定
+1. 是经过一些优化专家设计的，具有很好的性能
+1. 会随着新的GPU架构进行适配与优化的
+
+![image-20211109192958762](./images/image-20211109192958762.png)
+
+### Programming Power Tools
+
+这类的库很少会针对某一具体的领域设计一些接口，而更多的是提供一些基础功能让程序员去实现自己的解决方案。我们把这一类的库称为Power Tools。
+
+![image-20211109193626419](./images/image-20211109193626419.png)
+
+[**CUB**](https://github.com/NVIDIA/cub): CUDA unBind, CUB provides state-of-the-art, reusable software components for every layer of the CUDA programming model.
+
+[**CudaDMA**](http://lightsighter.github.io/CudaDMA/) is a library of DMA objects that support efficient movement of data between off-chip global memory and on-chip shared memory in CUDA kernels. CudaDMA objects support many different data transfer patterns including sequential, strided, and indirect patterns.
+
+### Platforms
+
+CUDA不等价于CUDA C/C++，CUDA本身是和语言无关的架构，所以我们还可以使用一些别的语言进行CUDA编程，比如Python，Matlab、Fortran等。
+
+跨平台并行编程的框架：OpenCL、OpenGL、OpenACC，前两者和CUDA很类似，会有一些并行编程的模型，比如线程块，SharedMemory等，而OpenACC更像是OpenMP属于一种前导式编译指示符，放在一些需要并行化的语句块的前面 。
+
+## Dynamic Parallelism
+
+动态并行意思就是可以让kernel函数内，再启动新的kernel函数。动态并行特别适配一些嵌套并行（Nested Parallelism）和一些递归并行（Recursive Parallelism）逻辑的算法。
+
+上边是普通的从host来调用kernel函数Hello，而下边HelloWorld本身就是一个kernel函数，它的内部再次调用了kernel函数Hello。
+
+```cpp
+__global__ void Hello() {
+	printf("Hello");
+}
+void main() {
+	Hello<<<1, 1>>>();
+  cudaDeviceSynchronize();
+  printf("World");
+}
+```
+
+```cpp
+__global__ void Hello() {
+	printf("Hello");
+}
+__global__ void HelloWorld() {
+	Hello<<<1, 1>>>();
+  cudaDeviceSynchronize();
+  printf("World");
+}
+```
+
+动态并行编程过程中需要注意的问题：
+
+1. 每个线程执行相同的代码段，所以在kernel函数内部的kernel函数可能会被父级的多个线程同时启动，所以一般的编程中，可能需要指定哪个线程去启动子kernel函数。
+
+   ```cpp
+   __global__ void launcher() {
+     if(threadIdx.x == 0) {
+       kernel<<<1,1>>>();
+     }
+   }
+   ```
+   
+2. 每个线程块执行时都是彼此独立的，线程块内部的Streams和Events都是私用的。
+
+3. 线程块内的共享存储是私有的，不可以传递给子Kernel函数。
+
+使用动态并行编写快排的示例：
+
+```cpp
+__global__ void quicksort(int  *data, int left, int right) {
+  int nleft, nright;
+  cudaStream_t s1, s2;
+  partiition(data+left, data+right, data[left], nleft, nright);
+  
+  if(left < nright) {
+    cudaStreamCreateWithFlags(&s1, cudaStreamNonBlocking);
+    quicksort<<<..., s1>>>(data, left, nright);
+  }
+  if(nleft < right) {
+    cudaStreamCreateWithFlags(&s2, cudaStreamNonBlocking);
+    quicksort<<<..., s2>>>(data, nleft, right);
+  }
+}
+```
