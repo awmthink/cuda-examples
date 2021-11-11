@@ -1,6 +1,6 @@
 # Udacity 344 Intro to Parallel Programming
 
-- 本课程除了教你在GPU上进行并行计算外，重要的是介绍并行计算的思维
+本课程除了教你在GPU上进行并行计算外，重要的是介绍并行计算的思维
 
 ## Lesson 1 GPU Programming Model
 
@@ -41,7 +41,9 @@ GPU编程的经典步骤
 
 GPU上编程最核心的就是如何编程kernel函数，它的代码就像只在一个核上运行。GPU非常擅长做2件事情：1）同时启动大量的线程； 2）同时运行多个线程 。
 
-kernel函数调用的写法`kernel_function<<<dim3(bx,by,bz), dim3(tx,ty,tz), shmem>>>(args...)`。其中dim3是一个数据结构，有`x`、`y`、`z` 3个成员。隐藏转换`num`为`dim3(num, 0, 0)`。`threadIdx`用于在kernel函数中获取当前线程在`block`中的定位，`blockIdx`用于获取当前`block`在`grid`中的定位。在kernel函数中通过`blockDim`来获取一个`block`的维度，通过`gridDim`来获取`grid`的维度。
+kernel函数调用的写法`kernel_function<<<dim3(bx,by,bz), dim3(tx,ty,tz), shmem>>>(args...)`。其中dim3是一个数据结构，有`x`、`y`、`z` 3个成员。隐藏转换`num`为`dim3(num, 0, 0)`。
+
+`threadIdx`用于在kernel函数中获取当前线程在`block`中的定位，`blockIdx`用于获取当前`block`在`grid`中的定位。在kernel函数中通过`blockDim`来获取一个`block`的维度，通过`gridDim`来获取`grid`的维度。在一维情况下，一个线程的id计算公式为：`blockIdx.x * blockDim.x + threadIdx.x`。
 
 每个GPU都有一些编程限制，可以通过`deviceQuery`程序来查看：
 
