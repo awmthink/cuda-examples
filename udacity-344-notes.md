@@ -6,105 +6,132 @@
 
 ### CPU vs. GPU 架构
 
-- 如何让处理器处理的更有效率：
-  - 提高时钟频率，让单位时间执行的指令更多
-  - 提高单条指令的能力，比如处理更多的数据，SIMD
-  - 同时有多个执行单元，多核
-- 选择2头牛还是选择1024只小鸡，在并行计算中，往往会选择1024只小鸡
-- GPGPU: 图片处理单元（GPU）上的通用编程
-- 这些年晶体管越来越小，已经达到了5nm以下，我们可以在同样尺寸上芯片上放更多的晶体管来达到更大的算力，但是为什么这些年CPU芯片的时钟频率没有怎么提高？首先是功耗，其次是散热。[为什么主流CPU的频率止步于4G?](https://zhuanlan.zhihu.com/p/30409360)
-- CPU架构上花了很多晶体管在电力与逻辑控制上，所以计算的效率并非最优的，GPU是有优势的。
-- 传统CPU优化的是单条指令的执行时间（latency，延时），而GPU优化的是吞吐量（throughput）。
+如何让处理器处理的更有效率：
+- 提高时钟频率，让单位时间的时钟周期会变得更多。
+- 提高单条指令的能力，比如处理更多的数据，SIMD等。
+- 同时有多个执行单元，多核。
+
+时钟周期也称为振荡周期，定义为时钟频率的倒数。时钟周期是计算机中最基本的、最小的时间单位。在一个时钟周期内，CPU仅完成一个最基本的动作。一条指令的执行往往分为取址、译码、执行等多个步骤，需要多个时钟周期，而且执令的执行是流水线式的。
+
+一味的提升时钟频率是不行的，因为需要增大电压，这样就会带来较大的功耗和较大的散热。这些年晶体管越来越小，已经达到了5nm以下，我们可以在同样尺寸上芯片上放更多的晶体管来达到更大的算力，但是为什么这些年CPU芯片的时钟频率没有怎么提高？首先是功耗，其次是散热。[为什么主流CPU的频率止步于4G?](https://zhuanlan.zhihu.com/p/30409360)
+
+当我们拥有多个执行单元（多核）时，需要解决的是多核心的管理问题，让它们能很好的协作。
+
+CPU架构上花了很多晶体管在电力与逻辑控制上，所以计算的效率并非最优的，GPU是有优势的。传统CPU优化的是单条指令的执行时间（latency，延时），而GPU优化的是吞吐量（throughput）。
+
+![image-20211111193027008](./images/image-20211111193027008.png)
+
+
+
+所以GPU的设计哲学是：1）大量轻量级的计算单元和简单的控制电路带来更多的计算能力；2）显式的并行编程模型；3）追求吞吐而不是追求延时。
 
 ### GPU编程
 
-- GPU像是一个CPU的协处理器，GPU是自己的存储，我们一般称为显存。
+GPU像是一个CPU的协处理器，GPU是自己的存储，我们一般称为显存。
 
-- 程序的执行是由CPU发起的，在整个程序运行过程中，可以通过CPU调用GPU的能力，比如驱动GPU申请一块显存、驱动GPU完成显存往内存上的拷贝、 驱动GPU执行一个kernel函数等。
+程序的执行是由CPU发起的，在整个程序运行过程中，可以通过CPU调用GPU的能力，比如驱动GPU申请一块显存、驱动GPU完成显存往内存上的拷贝、 驱动GPU执行一个kernel函数等。
 
-- GPU编程的经典步骤
-  - 用cudaMalloc申请显存
-  - 用cudaMemCpy把内存数据拷贝到显存上
-  - 执行Kernel函数，并行的对这些数据执行计算
-  - 将结果cudaMemCpy回内存上
-  
-- GPU上编程最核心的就是如何编程kernel函数，它的代码就像只在一个核上运行。
+GPU编程的经典步骤
+- 用cudaMalloc申请显存
+- 用cudaMemCpy把内存数据拷贝到显存上
+- 执行Kernel函数，并行的对这些数据执行计算
+- 将结果cudaMemCpy回内存上
 
-- GPU非常擅长做2件事情：1）同时启动大量的线程； 2）同时运行多个线程 。
+![image-20211111193535171](./images/image-20211111193535171.png)
 
-- kernel函数调用的写法`kernel_function<<<dim3(bx,by,bz), dim3(tx,ty,tz),shmem>>>(args...)`。
+GPU上编程最核心的就是如何编程kernel函数，它的代码就像只在一个核上运行。GPU非常擅长做2件事情：1）同时启动大量的线程； 2）同时运行多个线程 。
 
-- 其中dim3是一个数据结构，有`x`、`y`、`z` 3个成员。隐藏转换`num`为`dim3(num, 0, 0)`。
+kernel函数调用的写法`kernel_function<<<dim3(bx,by,bz), dim3(tx,ty,tz), shmem>>>(args...)`。其中dim3是一个数据结构，有`x`、`y`、`z` 3个成员。隐藏转换`num`为`dim3(num, 0, 0)`。`threadIdx`用于在kernel函数中获取当前线程在`block`中的定位，`blockIdx`用于获取当前`block`在`grid`中的定位。在kernel函数中通过`blockDim`来获取一个`block`的维度，通过`gridDim`来获取`grid`的维度。
 
-- `threadIdx`用于在kernel函数中获取当前线程在`block`中的定位，`blockIdx`用于获取当前`block`在`grid`中的定位。
+每个GPU都有一些编程限制，可以通过`deviceQuery`程序来查看：
 
-- 在kernel函数中通过`blockDim`来获取一个`block`的维度，通过`gridDim`来获取`grid`的维度。
+```txt
+Total amount of global memory:                 6075 MBytes (6370295808 bytes)
+(10) Multiprocessors, (128) CUDA Cores/MP:     1280 CUDA Cores
+GPU Max Clock rate:                            1709 MHz (1.71 GHz)
+Memory Clock rate:                             4004 Mhz
+Memory Bus Width:                              192-bit
+L2 Cache Size:                                 1572864 bytes
+Total amount of constant memory:               65536 bytes
+Total amount of shared memory per block:       49152 bytes
+Total number of registers available per block: 65536
+Warp size:                                     32
+Maximum number of threads per multiprocessor:  2048
+Maximum number of threads per block:           1024
+Max dimension size of a thread block (x,y,z): (1024, 1024, 64)
+Max dimension size of a grid size    (x,y,z): (2147483647, 65535, 65535)
+Maximum memory pitch:                          2147483647 byte
+```
 
-- 每个GPU都有一些编程限制，可以通过`deviceQuery`程序来查看：
-
-  ```txt
-  Total amount of global memory:                 6075 MBytes (6370295808 bytes)
-  (10) Multiprocessors, (128) CUDA Cores/MP:     1280 CUDA Cores
-  GPU Max Clock rate:                            1709 MHz (1.71 GHz)
-  Memory Clock rate:                             4004 Mhz
-  Memory Bus Width:                              192-bit
-  L2 Cache Size:                                 1572864 bytes
-  Total amount of constant memory:               65536 bytes
-  Total amount of shared memory per block:       49152 bytes
-  Total number of registers available per block: 65536
-  Warp size:                                     32
-  Maximum number of threads per multiprocessor:  2048
-  Maximum number of threads per block:           1024
-  Max dimension size of a thread block (x,y,z): (1024, 1024, 64)
-  Max dimension size of a grid size    (x,y,z): (2147483647, 65535, 65535)
-  Maximum memory pitch:                          2147483647 byte
-  ```
-  
-- 如上图所示，每个block中最大有1024个线程，而每个sm中最大有2048个线程，所以每个sm最大同时执行2个block。
-
-- 在我1060的卡上测试，如果blockDim设置为(1024, 2, 1)，使用`cudaGetLastError`获取错误返回为：`invalid configuration argument`。
+如上图所示，每个block中最大有1024个线程，而每个sm中最大有2048个线程，所以每个sm最大同时执行2个block。在我1060的卡上测试，如果blockDim设置为(1024, 2, 1)，使用`cudaGetLastError`获取错误返回为：`invalid configuration argument`。
 
 ##  Lesson 2 GPU Hardware and Parallel Communication Pattern
 
-### 并计算中的通信模式
+### 并行计算中的通信模式
 
-- Map: 每个对应的输出位置，访问其一一对应的输入位置
-- Gather：每个输出位置，都会访问多个的输入位置
-- Scatter：每个输入位置，都会对应被多个输出位置读取
-- Stencil：每个输出位置，都访问输入中一个模板对应的位置
-- Transpose：输入输出一一对应，但在2维结构上，是转置的
+在并行计算中，有大量的计算核心，这些计算核心操作的数据往往都在全局存储上，所以核心问题就是如何管理这些计算核心（线程）让他们能够很好的一起工作，由于涉及到共享全局存储的问题，所以一起会有一些
+
+**Map:** 每个对应的输出位置，访问其一一对应的输入位置，我们可以把Map模式表示为：
+
+```
+map(elements, function)
+```
+
+它将function作用在每一个element上，GPU对这种计算模式具有很常好的支持。
+
+**Gather：**每个输出位置，都会访问多个的输入位置，线程Idx是在输出序列上的。
+
+**Scatter：**每个输入位置，都会对应被一个或多个输出位置读取，线程Idx是在输入序列上的。
+
+**Stencil：**每个输出位置，都访问输入中一个模板对应的位置
+
+**Transpose：**输入输出一一对应，但在2维结构上，是转置的，或者由AoS转为SoA。
 
 ![Parallel Communication Patterns](./images/image-20210502160734412.png)
 
+这里gather和stencil也没有特别明显的区分。
+
 ### GPU架构
 
--  我们通过kernel函数启动的大量GPU线程，是按块，划分为多组的。其中一个block里的所有线程，会调度到同一个流处理器（SM）上执行，每个SM上都有一个shared_memory，可以被这一组线程共享访问。
-- 多个block被调度到不同的SM上，顺序是不能保证，执行时间也没有保证。
-- 不同的kenrel函数之间执行是串行的，只当前的kenrel函数中的所有block都执行完后，下一个kernel函数才会执行。
+**CUDA编程模型**：
+
+* 我们通过kernel函数启动的大量GPU线程，是按块，划分为多组的。其中一个block里的所有线程，会调度到同一个流处理器（SM）上执行，每个SM上都有一个shared_memory，可以被这一组线程共享访问。
+
+* 多个block被调度到不同的SM上，顺序是不能保证，执行时间也没有保证。
+
+* 不同的kenrel函数之间执行是串行的，只当前的kenrel函数中的所有block都执行完后，下一个kernel函数才会执行。
+
+这样的编程模型让我们程序可以适配在不同处理能力（不同数量的SM）的GPU设备上。
 
 ![SM and Blocks](./images/image-20210502161240839.png)
 
-- GPU的内存层次：每个线程都有自己的local memory，每个SM有shard memory，可以被一个block中的多个线程共享访问；所有SM中的线程都可以访问global memory。
+GPU的内存层次：每个线程都有自己的local memory，每个SM有shard memory，可以被一个block中的多个线程共享访问；所有SM中的线程都可以访问global memory。
 
-- 同一个block中的线程经常需要共享操作shared_memory，比如先写再读，那就需要等所有线程都写完后，所有线程才能开始读。这时就需要所有线程同步，`__syncthreads()`就是一种`barrier`措施，在插入了`__syncthreads()`的地方，所有线程执行到这里时，都需要等待，当前所线程都到达时，才再次开始同时执行。
+![image-20211111195852534](./images/image-20211111195852534.png)
 
-- 对于shared memory的使用，一般都是先写入，后用；可以用在那些一次载入，多次使用的数据上。如果访问模式中有错位（对应线程序号，访问了非对应位置的shared memory)，那都需要在读取后，设置`barrier`，然后读取。比如：
+同一个block中的线程经常需要共享操作shared_memory，比如先写再读，那就需要等所有线程都写完后，所有线程才能开始读。这时就需要所有线程同步，`__syncthreads()`就是一种`barrier`措施，在插入了`__syncthreads()`的地方，同一个block中的所有线程执行到这里时，都需要等待，当前所线程都到达时，才再次开始同时执行。
 
-  ```c
-  __shared__ int arr[128];
-  // arr[i] = arr[i + 1];
-  temp = arr[i + 1];
-  __synthreads();
-  arr[i] = temp;
-  ```
+对于shared memory的使用，一般都是先写入，后用；可以用在那些一次载入，多次使用的数据上。如果访问模式中有错位（对应线程序号，访问了非对应位置的shared memory)，那都需要在读取后，设置`barrier`，然后读取。比如：
+
+```c
+__shared__ int arr[128];
+// arr[i] = arr[i + 1];
+temp = arr[i + 1];
+__synthreads();
+arr[i] = temp;
+```
 
 ### 编写高性CUDA程序
 
-- 最大化计算密度，计算密度 = 计算 / 访存
-- CUDA程序优化的核心往往都是优化访存的时间
-- 对于Gobal Memory的访问，特别要注意，连续访问的性能，比按Stride的性能高，更比随机访问的性能要高。（这里应该是因为有L2 Cache的原因）
-- 多线程访问同一个global memory资源时，需要加锁； 或使用原子函数：`atomicAdd`等。
-- 避免线程发散（不同的线程，走了不同的if-else分支，或循环次数不同）。
+编程高性能CUDA程序，最核心的就是要最大化计算密度，计算密度 = 计算 / 访存，CUDA程序优化的核心往往都是优化访存的时间。对于一些需要反复从global memory中读取的数据，尽量先加载到sharedMemory中或local memory中进行处理。
+
+对于Gobal Memory的访问，特别要注意，连续访问的性能，比按Stride的性能高，更比随机访问的性能要高。（这里应该是因为有L2 Cache的原因），所以这里我的优化策略是：合并内存访问。
+
+![image-20211111200422990](./images/image-20211111200422990.png)
+
+多线程访问同一个global memory资源时，需要加锁； 或使用原子函数：`atomicAdd`等。
+
+除了要注意提高计算密度的问题，编写高性能CUDA程序额外需要注意的是避免线程发散：不同的线程，走了不同的if-else分支，或循环次数不同。
 
 ## Lesson 3 Fundamental GPU Algorithms: Reduce、SCAN、Histogram
 
