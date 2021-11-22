@@ -65,7 +65,7 @@ Max dimension size of a grid size    (x,y,z): (2147483647, 65535, 65535)
 Maximum memory pitch:                          2147483647 byte
 ```
 
-如上图所示，每个block中最大有1024个线程，而每个sm中最大有2048个线程，所以每个sm最大同时执行2个block。在我1060的卡上测试，如果blockDim设置为(1024, 2, 1)，使用`cudaGetLastError`获取错误返回为：`invalid configuration argument`。
+如上图所示，每个block中最大有1024个线程，而每个sm中最大有2048个线程，所以每个sm最大同时执行2个block（线程为1024的Block）。在我1060的卡上测试，如果blockDim设置为(1024, 2, 1)，使用`cudaGetLastError`获取错误返回为：`invalid configuration argument`。
 
 ##  Lesson 2 GPU Hardware and Parallel Communication Pattern
 
@@ -73,7 +73,7 @@ Maximum memory pitch:                          2147483647 byte
 
 在并行计算中，有大量的计算核心，这些计算核心操作的数据往往都在全局存储上，所以核心问题就是如何管理这些计算核心（线程）让他们能够很好的一起工作，由于涉及到共享全局存储的问题，所以一起会有一些
 
-**Map:** 每个对应的输出位置，访问其一一对应的输入位置，我们可以把Map模式表示为：
+**Map**: 每个对应的输出位置，访问其一一对应的输入位置，我们可以把Map模式表示为：
 
 ```
 map(elements, function)
@@ -81,13 +81,13 @@ map(elements, function)
 
 它将function作用在每一个element上，GPU对这种计算模式具有很常好的支持。
 
-**Gather：**每个输出位置，都会访问多个的输入位置，线程Idx是在输出序列上的。
+每个输出位置，都会访问多个的输入位置，线程Idx是在输出序列上的。
 
-**Scatter：**每个输入位置，都会对应被一个或多个输出位置读取，线程Idx是在输入序列上的。
+**Scatter**：每个输入位置，都会对应被一个或多个输出位置读取，线程Idx是在输入序列上的。
 
-**Stencil：**每个输出位置，都访问输入中一个模板对应的位置
+**Stencil**：每个输出位置，都访问输入中一个模板对应的位置
 
-**Transpose：**输入输出一一对应，但在2维结构上，是转置的，或者由AoS转为SoA。
+**Transpose**：输入输出一一对应，但在2维结构上，是转置的，或者由AoS转为SoA。
 
 ![Parallel Communication Patterns](./images/image-20210502160734412.png)
 
@@ -137,22 +137,237 @@ arr[i] = temp;
 
 ## Lesson 3 Fundamental GPU Algorithms: Reduce、SCAN、Histogram
 
-- GPU算法中，往往通过度量`Step`和`work`来评估并行算法的复杂度
-- Reduce算法的定义：
-  - Set of Elements
-  - Reduce Operator: 1）2元运算法； 2）具有结合性 (a op b) op c  = a op (b op c)
-- Reduce算法的GPU实现：
-  - 按线程块划分，每个线程块分别Reduce，然后把所有线程块的结果再Reduce一下。
-  - 每个线程块内采用步长的循环，两两相加，结果写在前一个结果上。
-  - Reduce在GPU实现的STEP复杂度为`O(logN)`，WORK复杂度为`O(N)`
-- SCAN算法的定义
-  - Set of Elements
-  - Reduce Operator: 1）2元运算法； 2）具有结合性 (a op b) op c  = a op (b op c)
-  - 存在单位元I，满足 a op I = a
-- SCAN算法包括2种形式：1）Inclusive； 2）Exclusive
-- Hillis Steele SCAN算法
-- Blelloch SCAN算法
-- Histogram算法
+本节课主要学习2方面的内容：1）如何评估GPU算法的速度与效率；2）3个基础的GPU算法：Reduce、SCAN和Histogram。
+
+### 并行算法的评估
+
+在并行算法中，我们除了关注任务完成的时间外，我们还会关注总的工作量，因为任务是由多个核一起完成的，在单核情况下，任务完成的时间就是总的工作量，而在多核心情况下，每个核心花费的时间总和才是任务的工作量。
+
+我们把完成某一特定计算任务需要的时间称为Step，而把所有参加到这个计算任务的worker的时间总和称为总工作量（work）。所以后续我们可以使用**step complexity**和**work complexity**两个指标来衡量1个并行算法的复杂度。
+
+![image-20211115194416625](./images/image-20211115194416625.png)
+
+我们用work-efficent来评估并行算法与串行算法，如果并行算法和串行算法有着差不多的work complexity，但step complexity更小，那么这个并行算法一般都是有效的。
+
+### Reduce
+
+Reduce算法的定义：
+- Set of Elements
+- Reduce Operator: 1）2元运算符； 2）具有结合性 (a op b) op c  = a op (b op c)
+
+串行Reduce的计算非常的简单，直需要对Elements进行遍历，然后一直对结果和Element执行二元运算就可以了。
+
+```
+result = 0
+for item in elements:
+	result = op(result, item)
+```
+
+可以看出串行代码的Step Complexity和Work Complexity都为为$O(n)$。
+
+并行版本的Reduce，就是把整个计算看成一个二叉树状，从叶子开始一层一层的计算，它的step complexity为$O(\log n)$，而work complexity依然为$O(n)$。并行算法在步骤复杂度上非常有优势，但如果想取得这么大优势的加速提升，需要有足够多的计算单元，比如对于100万个数进行加法，那第一层的运算需要50万个计算单元，而实际一般的GPU也只有几千的计算单元。
+
+![image-20211115195739928](./images/image-20211115195739928.png)
+
+CUDA版本的Reduce的实现，假设我们要对100万（1<<20）个数字进行Reduce，那么我们整个Reduce是分为2步的，第一步是同时执行1024个线程块，每个线程块有1024个线程，对1024个数字进行并行Reduce，每个线程块产生一个结果，最终1024个线程块的结果，再用一个线程块来进行Reduce。
+
+```cpp
+// d_out的长度等于线程块的个数，每个线程块把reduce的结果写到d_out[blockIdx.x]
+__global__ void global_reduce_kernel(float *d_out, float *d_in) {
+	int myId = threadIdx.x + blockDim.x * blockIdx.x;
+  int tid = threadIdx.x;
+  // 每次迭代都将序列一分为二，右边的数字加到左边上
+  for (unsigned int s = blockDim.x / 2; s > 0; s = s / 2) {
+  	if (tid < s) {
+    	d_in[myId] += d_in[myId + s];
+    }
+    __syncthreads();
+  }
+  if (tid == 0 ) {
+  	d_out[blockIdx.x] = d_in[myId];
+  }
+}
+```
+
+上面的代码中在for循环内，需要对d_in进行反复的读取，所以我们可以使用共享内存进行优化。
+
+```cpp
+__global__ void shmem_reduce_kernel(float *d_out, float *d_in) {
+	int myId = threadIdx.x + blockDim.x * blockIdx.x;
+  int tid = threadIdx.x;
+  
+  extern __shared__ float sdata[]; // 声明shared memory
+  // 将数据从global memory拷贝到shared memory
+  sdata[myId] = d_in[myId];
+  __syncthreads();
+
+  for (unsigned int s = blockDim.x / 2; s > 0; s = s / 2) {
+  	if (tid < s) {
+    	sdata[tid] += sdata[tid + s];
+    }
+    __syncthreads();
+  }
+  if (tid == 0 ) {
+  	d_out[blockIdx.x] = sdata[tid];
+  }
+}
+```
+
+可以手动计算一下，shared memory版本将会减少一半我们对global memory的访问。
+
+### SCAN
+
+#### SCAN算法的基本介绍与串行实现
+
+SCAN是一个看起来在串行编程中没什么用的计算模式，但在并行计算中却非常有用，它可以帮助我们把大量看起来无法并行化的计算并行化实现，比如在内存压缩与分配，快排、稀疏矩阵计算等应用中。
+
+SCAN算法的定义
+- Set of Elements
+- Reduce Operator: 1）2元运算法； 2）具有结合性 (a op b) op c  = a op (b op c)
+- 存在单位元I，满足 a op I = a
+
+SCAN的输出结果是和输入序列等长的一个序列，输出序列每个位置上的值为输入序列该位置之前的所有元素Reduce的结果。
+
+![image-20211115202309498](./images/image-20211115202309498.png)
+
+
+
+SCAN算法的串行计算代码为下：
+
+```cpp
+int acc = identity;
+for (int i = 0; i < elements.size(); i++) {
+	acc = acc op elements[i];
+  out[i] = acc;
+}
+```
+
+所以整个算法的step complexity和work complexity都为$O(n)$。
+
+在讨论并行SCAN如何实现之前，我们先从宏观视角来看为什么SCAN很有用，在并行计算中，我们常常遇到如下的计算模式，有一个输入序列，我们要计算一个输出序列，而输出序列中的每一项都依赖第一项的结果，导致整个计算过程看起来是一个前向依赖，串行化的模式。**类似这种的计算问题，大部分我们可以通过SCAN来解决**。
+
+![image-20211115203052320](./images/image-20211115203052320.png)
+
+
+
+SCAN算法包括2种形式：1）Inclusive； 2）Exclusive
+
+对于输入序列[13, 7, 16, 21, 8, 20, 13, 12]
+
+如果我们执行Inclusive SUM SCAN，则表示对应位置的输出是包括输入对应位置之前的元素**以及对应位置**的元素，它的结果为
+
+[13, 20, 36, 57, 65, 85, 98, 110]
+
+如果我们执行Inclusive SUM SCAN，则表示对应位置的输出是包括输入对应位置之前的元**素但不包括对应位置**的元素，它的结果为
+
+[0, 13, 20, 36, 57, 65, 85, 98]
+
+这两种SCAN的形式，可能在一些并行问题中都会被用到。它们之间的转换其实也非常简单（中间都是一样的，只有首尾错位了一些）。
+
+对于SCAN来说，一种直观的并行实算法是，每个对应输出位置，都是一次Reduce计算。这样每个输出位置就不再依赖前一个输出位置的结果了。
+
+![image-20211118192941600](./images/image-20211118192941600.png)
+
+但上面的算法的work complexity太高了，而且每个线程执行的计算极不平衡。
+
+#### Hillis Steele SCAN算法
+
+算法的发明人是Danny Hillis和Guy Steele，于1986年发明。
+
+![image-20211118193740086](./images/image-20211118193740086.png)
+
+每轮计算，步长s按1,2,4,8,... 这样2的幂次方增长，每个元素都加上自己左边离自己s步长的元素，如果它超出了数组，则原地复制自己。长度大于数组长度为止。
+
+```c++
+void HillisSteeleScan(float *in, float *out, int n){
+	for(s = 1; s < n; s = s * 2) {
+    for (int i = 0; i < n; i++) {
+      if (i - s >= 0) {
+        out[i] = in[i] + in[i - s];
+      } else {
+        out[i] = in[i];
+      }
+    }
+    // 在串行算法中，实际上可以直接执行原地操作
+    for (int i = 0; i < n; i++) {
+      in[i] = out[i];
+    }
+	}
+}
+```
+
+HillisSteeleScan的并行算法实际非常高效，它也是在GPU上实现的第一种扫描算法。
+
+#### Blelloch SCAN算法
+
+Guy Blelloch在1990年宣传了另外一种扫描公式。它拥用更好的work complexity：$O(n)$​，但它比HillisSteele算法的Step Complexity高一倍。它是一种Exclusive SCAN算法。
+
+![image-20211118200712418](./images/image-20211118200712418.png)
+
+算法上整体分为2个阶段：
+
+第一个阶段进行向下Reduce，按一定的步长s遍历数组中的元素，将其左边距离步长s的元素和自己相加。需要注意的是这个阶段的迭代中有一些中间结果，这些中间结果需要缓存下来。
+
+第二个阶段相反，步长从大到小，每个元素和其左边步长为s的元素执行一种新的DownSweep的操作。
+
+#### 哪种算法更快
+
+不同的机器和不同的输入数据，结果可能都不一样。
+
+当我们有大量的处理器，但整体的计算量不大时，我们倾向于选择Step Complexity更佳的。但我们任务的计算量远大于处理器数量时，则优先选则work complexity更佳的。
+
+有一些复杂，并行计算任务，在多个步骤中，每步的step complexity和，work complexity会变化，所以我们可以灵活的来选择不同的算法策略。
+
+![image-20211118202609424](./images/image-20211118202609424.png)
+
+### Histogram算法
+
+直方图算法是将一个序列按一定的分组区间进行统计。我们可以使用串行代码表示如下：
+
+```c
+// 先将每个区间的统计值设置为0
+for (int i = 0; i < bin.count; i++){
+	hist[i] = 0;
+}
+// 再遍历序列，对序列中的每个元素，调用computeBin来计算所属于的区间
+for (int i = 0; i < mesurements.size(); i++){
+	hist[computeBin(mesurements[i])]++;
+}
+```
+
+对于长度为n的序列，如果我们划分的区间个数是b，则每个区间最大可能的统计值为n，意味着所有的元素都落在了同一个区间上；平均每个区间上的元素个数是n / b。
+
+对于并行化的Histogram算法，最直接的就是把上面串行代码中第二个for循环，改为多个线程同时执行。但多个线程由于对于hist是共享访问和修改的，所以这里会存在数据竞争的问题。
+
+无论是GPU显存还是CPU内存，我们的类似运算指令对于内存上值的修改都会包括3个部分：
+
+1. 将内存中的值从内存读到寄存器中
+2. 在寄存器中完成运算
+3. 将寄存器中的运算结果写入到内存中。
+
+上面这3个步骤RMW（Read+Modify+Write）并不是原子的。
+
+下面是使用原子操作的并行算法的版本：
+
+```c++
+__global__ void simple_histo(int *d_bins, const int *d_in, const int BIN_COUNT)
+{
+  int myId  = theadIdx.x + blockDim.x * blockIdx.x;
+  int myItem = d_in[myId];
+  int myBin = myItem % BIN_COUNT;
+  atomicAdd(&(d_bins[myBin], 1);
+}
+```
+
+上面实现的问题在于原子操作的互斥性，容易导致大量的线程都补卡在了原子语句的执行前。尤其是当我们的线程越多，划分的区域越少时，则冲突越严重。
+
+另外一种实现是：我们使用K个线程，每个线程处理N/K个元素，来求取一个局部的直方图，最后再把每个线程的真方图加在一起。这样在每个线程里由于是串行处理，所以不需要使用原子操作。
+
+最后一种算法是使用排序，将每个元素属于的区域的index作为key，value为1，这样就形成了一个pair的序列，我们对这样的序列进行sortByKey，然后再ReduceByKey，就可以得到直方图统计了。
+
+![image-20211120235628576](./images/image-20211120235628576.png)
+
+
 
 ## Lesson 4 Fundamental GPU Algorithm: Application of Scan and Sort
 

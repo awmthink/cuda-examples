@@ -9,7 +9,7 @@
 * [CUDA C++ Best Practices Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html)
 * [谭升的博客](https://face2ai.com/program-blog/#GPU%E7%BC%96%E7%A8%8B%EF%BC%88CUDA%EF%BC%89)
 * [CUDA编程入门](https://www.zhihu.com/column/c_1188568938097819648)
-* [CUDA编程方法论](zhihu.com/column/c_1139113249399345152)
+* [CUDA编程方法论](https://zhihu.com/column/c_1139113249399345152)
 * [GPU优化系列：reduce优化](https://zhuanlan.zhihu.com/p/426978026)
 * [英伟达GPU架构演进近十年，从费米到安培](https://zhuanlan.zhihu.com/p/413145211)
 * [深入GPU硬件架构及运行机制](https://www.cnblogs.com/timlly/p/11471507.html)
