@@ -1,10 +1,27 @@
 # cuda-progamming
 
 
+## Notes
 
-## 参考资料
+- [Udacity-CS344笔记](./notes/udacity-cs344.md)
 
-* [Udacity CS344: Intro to Parallel Programming](https://github.com/udacity/cs344)
+
+## Examples
+
+- [Matrix Multiple](./examples/matrix_multiple/README.md)
+- [Reduce](./examples/reduce/README.md)
+- [SCAN](./examples/scan/README.md)
+- [Histogram]()
+- [BRICK Sorting]()
+- [Merge Sorting]()
+- [Bitonic Sorting]()
+- [Radix Sorting]()
+- [Matrix Transpose]()
+- [Sparse Matrix]()
+
+## Resources
+
+* [Udacity CS344: Intro to Parallel Programming: 90%](https://github.com/udacity/cs344)
 * [NVIDIA CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
 * [CUDA C++ Best Practices Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html)
 * [谭升的博客](https://face2ai.com/program-blog/#GPU%E7%BC%96%E7%A8%8B%EF%BC%88CUDA%EF%BC%89)
