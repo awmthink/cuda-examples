@@ -472,6 +472,10 @@ OBILIVIOUS特性比较适配在GPU上运行，因为GPU本身在运算控制方�
 
 ![image-20211123100437874](../images/image-20211123100437874.png)
 
+双调排序是一个并行化很好的算法，它的核心操作就是数据交换，在GPU中，如果数据量不大，我们可以把数据放到共享内存中进行双调排序，性能非常快。所以像MergeSort这样的算法，开始时需要一些排序好的小块，就可以使用Bitonic Sort。
+
+Bitonic Sort只是排序网络的一种，还有其他的排序网络，比如：[OddEven Merge Sort](https://en.wikipedia.org/wiki/Batcher_odd%E2%80%93even_mergesort)。
+
 ### Radix Sort
 
 基数排序是指将数字序列根据其二进制位来进行排序，整个算法也非常简单，步骤描述如下：
@@ -485,6 +489,24 @@ OBILIVIOUS特性比较适配在GPU上运行，因为GPU本身在运算控制方�
 ![image-20211123101010478](../images/image-20211123101010478.png)
 
 整个算法的Work Complexity为$O(kn)$，其中k是数字的位数。Step Complexity为$O(k)$。
+
+我们可以每次迭代拆分更多的位数，比如每次看4位，则会把整个序列拆分为16份，依次对应：0000，0001，0010，0011，....。这样将会有更高的效率。
+
+### Quick Sort
+
+Quick sort是一种递归的算法，在GPU上实现递归算法是一个非常大的挑战，但最新的GPU支持的动态并行技术可以让我们实现递归，在不使用Dynamic Parallelism之前，我们也可以使用前面学习过的一些基本原语来实现快排。
+
+它的核心思想是分段Compact，CS344课程中并没有详细的介绍完整的实现，只说了思路。
+
+![image-20211123203741896](../images/image-20211123203741896.png)
+
+### KeyValue Sort
+
+前面介绍的排序实际上都是KeySort，排序元素是单一的值，实际上我们经常会遇到排序的对象是一个KeyValue对。
+
+如果Value是一个复杂的结构体，那么我们可以用它的指针来代替它，这样我们就可以把Key+Pointer在一起排序了。不过我们在执行排序时，在移动元素时，要将Key和Value一起移动。
+
+还有一种办法是，如果Key和Value都是32位的数，那么可以将它们捆绑在一起作为一个64位的数进行操作，只不过我们需要定制比较函数了。
 
 ## Lesson 5 Optimizing GPU Programs
 
