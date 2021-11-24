@@ -4,6 +4,7 @@
 ## Notes
 
 - [Udacity-CS344笔记](./notes/udacity-cs344.md)
+- [GPU Architecture](./notes/gpu-architecture.md)
 
 ## Examples
 
@@ -16,8 +17,9 @@
 - [Merge Sorting]()
 - [Bitonic Sorting]()
 - [Radix Sorting]()
-- [Matrix Transpose]()
+- [Matrix Transpose](./examples/transpose/README.md)
 - [Sparse Matrix]()
+- [Device Management](./examples/device/README.md)
 
 ## Resources
 
