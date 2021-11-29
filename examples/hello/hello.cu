@@ -1,5 +1,6 @@
-#include <cuda_runtime_api.h>
 #include <stdio.h>
+
+#include <cuda_runtime_api.h>
 
 __global__ void hello() { printf("hello, "); }
 
