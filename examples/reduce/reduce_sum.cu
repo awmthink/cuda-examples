@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "common/cuda_helper.h"
+#include "common/stopwatch.h"
 
 __global__ void reduce_sum(float *d_in, float *d_block_result) {
   unsigned int tidx = threadIdx.x;
@@ -41,8 +42,12 @@ int main(int argc, char *argv[]) {
   checkCudaErrors(cudaMemcpy(d_in, array.data(), sizeof(float) * array_size,
                              cudaMemcpyHostToDevice));
 
+  Stopwatch kernel_watch;
   reduce_sum<<<grid, block, block.x * sizeof(float)>>>(d_in, d_block_result);
   checkLastCudaError();
+  checkCudaErrors(cudaDeviceSynchronize());
+  std::cout << "Reduce Sum Kernel elapsed: " << kernel_watch.Elapsed<mus>()
+            << " us" << std::endl;
 
   std::vector<float> block_result(grid.x);
   checkCudaErrors(cudaMemcpy(block_result.data(), d_block_result,
