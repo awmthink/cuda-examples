@@ -13,6 +13,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(examples 
     examples/hello/hello.cu
     examples/device/device_query.cpp
+    examples/reduce/reduce_sum.cu
 )
 
 foreach(example_src ${examples})

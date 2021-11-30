@@ -6,7 +6,7 @@
 #include "common/cuda_helper.h"
 
 // ConvertSMVer2Cores convert gpu architecture version to cuda cores (ALU lanes)
-// if the architectur version was not defined, return -1
+// if the architecture version was not defined, return -1
 // refer: https://en.wikipedia.org/wiki/CUDA
 static inline int ConvertSMVer2Cores(int major, int minor) {
   const std::map<int, int> gpu_arch_cores_per_SM = {
