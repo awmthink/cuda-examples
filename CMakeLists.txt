@@ -25,5 +25,3 @@ foreach(example_src ${examples})
     )
     target_link_libraries(${example_name} PRIVATE CUDA::cudart CUDA::cublas)
 endforeach()
-
-message(STATUS ${CMAKE_SOURCE_DIR}/examples )
