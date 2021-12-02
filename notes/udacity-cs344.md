@@ -508,7 +508,7 @@ Quick sort是一种递归的算法，在GPU上实现递归算法是一个非常�
 
 还有一种办法是，如果Key和Value都是32位的数，那么可以将它们捆绑在一起作为一个64位的数进行操作，只不过我们需要定制比较函数了。
 
-Lesson 5 Optimizing GPU Programs
+## Lesson 5 Optimizing GPU Programs
 
 ### 优化GPU程序的一般原则
 
@@ -531,22 +531,89 @@ Lesson 5 Optimizing GPU Programs
 
 前2个层次是我们必须掌握的，在GPU优化中往往能取得3-10倍的加速，而后面2个层次，则需要充分了解硬件与指令集架构，往往要求更高，但往往只能带来不到1倍的性能提升。
 
-### APOD流程
+### APOD-系统性的优化流程
 
-- Analyze: 部析程序的热点部分，是不是可以并行化加速
-- Parallelize：使用AVX、OpenACC、OpenMP、CUDA等来加速
-- Optimize
-- Deploy：在真实的数据与环境上运行，看效果
+一个良好的软件工程规范是使用APOD流程来指导我们的性能优化工作。它包括了4个阶段，并不是从开始到结束一次性的，这4个阶段实际是一个循环的过程，直到我们对最终的性能满意。
 
-- 矩阵转置的GPU实现
-  - 直接GPU加速会，导致DRAM的带宽使用率低，因为会出来大Stride写入的问题
-  - 每次Load一块，在shared memory中进行转置，再拷贝回去
-  - 使用shard memory就会遇到 __syncthreads的问题，这时候，需要适当降低线程块中线程的数量
-- 优化所有线程在`barrier`前面的等待时间
-- 避免同一个`wrap`中所有线程的线程发散（有不同的执行分支），因为所有wrap中的线程是同步执行的，如果有分支，那当有一部线程在执行某个分支时，其他线程在等待。
-- 使用一些内置的数学函数：`__sin`、`__cos`、`__exp()`等
-- 使用`pinned memory`
-- 使用MultiStream和异步拷贝。不同stream上内存操作与核函数执行都是可以异步的，同一个stream上的拷贝与核函数执行是排队的。
+需要注意的是Deploy阶段，我们不要漏掉了Deploy阶段，在这个阶段，我们需要把程序部署到实际的环境中，用真实的数据来看一下我们的程序运行的效率，而不是用开发时的数据与环境去反复验证与优化，因为很可能开发时的环境与数据和真实的情况不同。真实的环境与数据很多时候会给我们更真实的运行表现的反馈。
+
+人家往往很容易饶在Parallelize和Optimize这两个阶段里，花掉了大量的时间。
+
+#### Analyze
+
+部析程序的热点部分，是不是可以并行化加速，以及加速该部分可以获得多大的最终收益。
+
+在分析程序热点时，不要依赖直觉，而是profile的结果，有很多不同的profile工具可以使用，比较常见的是gprof。
+
+**Amdahl's Law**：  假如一个程序花在我们可以并行优化的模块的时间为P，那么整个程序我们最大能优化提速的比率是：
+$$
+\frac{1}{1-P}
+$$
+当我们进行了一定的优化工作后，很可能之前的热点模块就不再是热点模块了，我们需要停下来分析一下是否需要继续优化该模块。
+
+#### Parallelize
+
+首先要看使用什么方法来优化，我们可以使用OpenACC、OpenMP、CUDA、AVX或者直接使用一个现成的库，比如OpenBLAS、CuBLAS等来加速。
+
+本门课程下，我们主要是指需要自己使用编程来实现优化，所以我们接下来就需要来选择一个合适的算法，这个选择在CPU和GPU下往往是不同的。
+
+#### Optimize
+
+Profile-Driven Optimization，通过Profile来测量GPU中指令、内存等核心指标来看我们的程序是否充分利用了硬件的能力。在这一步里，一定要根据一些Profile的结果来做决策，而不是凭猜测和经验，GPU下很多时候经验（CPU下的编程经验）就不准了。
+
+#### Deploy
+
+在真实的数据与环境上运行，看效果。
+
+### 矩阵转置的示例
+
+V1:CPU实现 -
+
+V2:GPU Serial 实现 - 466ms
+
+V3:Parallel Per Element (0.67ms) - 全部并行化往往不是一定是最终性能最好的，有一种优化技术为粒度粗化，第第6章的例子中会涉及到。
+
+对于访问的带宽，如果我们的程序可以利用率（DRAM Utilization）到60-75%就不错了，如果大于75%就很优秀了。
+
+V3版本的内存带宽利用率低的原因就在于，对于内存的访问存在大跨步的写入问题。
+
+V4版本TileSharedMemory版本TileSize=32。 1.6ms，这个版本的问题是花了太多的时间在Barrier上。
+
+V5 TileSharedMemory Tilesize=16  0.52ms
+
+### Little's Law
+
+![image-20211202175613807](images/image-20211202175613807.png)
+
+### Occupancy
+
+一个SM上同时能跑多少个ThreadBlock， 会被SM上的总的资源限制，包括了cores，registres，shared memory等。
+
+### Minimizing Thread Divergence
+
+![image-20211202180218341](images/image-20211202180218341.png)
+
+### Assorted Math Optimizations
+
+![image-20211202180323495](images/image-20211202180323495.png)
+
+### Host-GPU Interaction
+
+**Pinned Memory**
+
+当我们有大量的CPU与GPU之间搬运数据的需求时，我们可以使用Pinned(Page Locked) Memory来避免一次CPU 内存上的搬运。
+
+因为对于一般Page Unlocked的内存，在cudaMemcpy前都需要先copy到Pinned区域。
+
+![image-20211202180551037](images/image-20211202180551037.png)
+
+**Streams**
+
+![image-20211202180843033](images/image-20211202180843033.png)
+
+Stream下的异步拷贝与计算在Overlap在一起，尤其是在进行大数据量计算时，非常有用。
+
+![image-20211202181155172](images/image-20211202181155172.png)
 
 ## Lesson 6 Parallel Computing Patterns
 
