@@ -25,9 +25,29 @@
 - [List Randking]()
 - [Device Management](./examples/device/README.md)
 
+cuda
+concurrency programming
+master cpp: template， modern cpp, stl
+architecture and design parttern
+tools:
+    gdb
+    cmake
+    git
+    varlgind
+    docker
+    bash
+    makefile
+domain knowledge:
+    image,video,audio proessing
+    ffmpeg: multimdia decodec
+    opencv: image process
+    taskflow/trition
+    kestrel/flock
+    dl: caffe/pytorch
+
 ## Resources
 
-* [Udacity CS344: Intro to Parallel Programming: 90%](https://github.com/udacity/cs344)
+* [Udacity CS344: Intro to Parallel Programming](https://github.com/udacity/cs344)
 * [NVIDIA CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
 * [CUDA C++ Best Practices Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html)
 * [Professional CUDA C Programming](https://book.douban.com/subject/24773399/)：一本面向初中级的教科书，2014年发布。

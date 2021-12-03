@@ -10,11 +10,8 @@ set(CMAKE_CUDA_ARCHITECTURES "61")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(examples 
-    examples/hello/hello.cu
-    examples/device/device_query.cpp
-    examples/reduce/reduce_sum.cu
-)
+set(examples)
+add_subdirectory(examples)
 
 foreach(example_src ${examples})
     get_filename_component(example_name ${example_src} NAME_WE)

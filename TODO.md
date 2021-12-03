@@ -1,8 +1,10 @@
 # Coding
 
-- [ ] cs344的笔记第5章 & transpose示例
-- [x] GPU架构笔记
-- [ ] 谭升博客中涉及到的代码整理到Examples中
+- [ ] Transpose
+- [ ] Reduce
+- [ ] SCAN
+- [ ] Bitonic SORT
+- [ ] Radix SORT
 - [ ] cs344的作业
     - 作业1是rgb2gray
     - 作业2是blur
@@ -10,8 +12,6 @@
     - 作业4是红眼消除：Sort
     - 作业5是直方图优化
     - 作业6是图像无缝融合
-- [ ] cs344课程中出现的例子的代码（主要是第6章中的例子）
-- [ ] 一些博客中的优化代码：矩阵乘法、Reduce、SCAN等
 - [ ] TaskFlow中的cuda_algorithm
 - [ ] Faiss中的GPUIVFPQ的代码
 
