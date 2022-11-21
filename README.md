@@ -25,26 +25,6 @@
 - [List Randking]()
 - [Device Management](./examples/device/README.md)
 
-cuda
-concurrency programming
-master cpp: template， modern cpp, stl
-architecture and design parttern
-tools:
-    gdb
-    cmake
-    git
-    varlgind
-    docker
-    bash
-    makefile
-domain knowledge:
-    image,video,audio proessing
-    ffmpeg: multimdia decodec
-    opencv: image process
-    taskflow/trition
-    kestrel/flock
-    dl: caffe/pytorch
-
 ## Resources
 
 * [Udacity CS344: Intro to Parallel Programming](https://github.com/udacity/cs344)
