@@ -46,7 +46,7 @@ __global__ void window_sum_shared(float *input, float *output, int n,
 }
 
 int main() {
-  constexpr int length = 100;
+  constexpr int length = 1028;
   constexpr int winsize = 5;
   std::vector<float> h_input(length);
   std::iota(h_input.begin(), h_input.end(), 0);
@@ -69,12 +69,14 @@ int main() {
   timer.Start();
   window_sum<<<blocks, threads_per_block>>>(d_input, d_output, output_len,
                                             winsize);
+  cudaDeviceSynchronize();
   timer.Stop();
   std::cout << "window sum time: " << timer.Elapsed() << std::endl;
 
   timer.Start();
   window_sum_shared<<<blocks, threads_per_block, shared_size>>>(
       d_input, d_output, output_len, winsize);
+  cudaDeviceSynchronize();
   timer.Stop();
   std::cout << "window sum (shared) time: " << timer.Elapsed() << std::endl;
 
@@ -86,4 +88,9 @@ int main() {
     std::cout << out << ", ";
   }
   std::cout << std::endl;
+
+  checkCudaErrors(cudaFree(d_input));
+  checkCudaErrors(cudaFree(d_output));
+
+  return 0;
 }

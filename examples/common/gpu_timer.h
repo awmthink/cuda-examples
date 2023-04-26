@@ -1,5 +1,5 @@
-#ifndef CUDA_EXAMPLES_EXAMPLES_COMMON_GPU_TIMER_H_
-#define CUDA_EXAMPLES_EXAMPLES_COMMON_GPU_TIMER_H_
+#ifndef EXAMPLES_COMMON_GPU_TIMER_H_
+#define EXAMPLES_COMMON_GPU_TIMER_H_
 
 #include <cuda_runtime_api.h>
 
@@ -31,4 +31,4 @@ class GpuTimer {
   cudaEvent_t stop_;
 };
 
-#endif  // CUDA_EXAMPLES_EXAMPLES_COMMON_GPU_TIMER_H_
+#endif  // EXAMPLES_COMMON_GPU_TIMER_H_

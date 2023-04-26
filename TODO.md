@@ -1,5 +1,6 @@
 # Coding
 
+- [x] Window Sum
 - [ ] Transpose
 - [ ] Reduce
 - [ ] SCAN

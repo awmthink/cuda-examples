@@ -39,7 +39,7 @@ void checkCudaDevice() {
   checkCudaErrors(cudaGetDeviceCount(&device_count));
   if (device_count == 0) {
     printf("There are no available device(s) that support CUDA\n");
-    return;
+    exit(EXIT_SUCCESS);
   }
   int driver_version = 0;
   int runtime_version = 0;
