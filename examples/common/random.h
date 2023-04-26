@@ -1,5 +1,5 @@
-#ifndef CU_EXAMPLES_EXAMPLES_COMMON_RANDOM_H_
-#define CU_EXAMPLES_EXAMPLES_COMMON_RANDOM_H_
+#ifndef EXAMPLES_COMMON_RANDOM_H_
+#define EXAMPLES_COMMON_RANDOM_H_
 
 #include <random>
 #include <vector>
@@ -28,4 +28,4 @@ void FillSequenceNumbers(std::vector<int>& array, int start = 0) {
   std::iota(array.begin(), array.end(), start);
 }
 
-#endif  // CU_EXAMPLES_EXAMPLES_COMMON_RANDOM_H_
+#endif  // EXAMPLES_COMMON_RANDOM_H_

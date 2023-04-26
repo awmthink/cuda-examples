@@ -1,5 +1,5 @@
-#ifndef CUDA_EXAMPLES_EXAMPLES_COMMON_STOPWATCH_H_
-#define CUDA_EXAMPLES_EXAMPLES_COMMON_STOPWATCH_H_
+#ifndef EXAMPLES_COMMON_STOPWATCH_H_
+#define EXAMPLES_COMMON_STOPWATCH_H_
 
 #include <chrono>
 #include <string>
@@ -105,4 +105,4 @@ std::string show_times(const std::vector<std::uint64_t>& times) {
   return result;
 }
 
-#endif  // CUDA_EXAMPLES_EXAMPLES_COMMON_STOPWATCH_H_
+#endif  // EXAMPLES_COMMON_STOPWATCH_H_

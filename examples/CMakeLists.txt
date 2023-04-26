@@ -3,5 +3,7 @@ set(examples
     examples/device/device_query.cpp
     examples/reduce/reduce_sum.cu
     examples/transpose/matrix_transpose.cu
+    examples/matrix_multiple/matrix_multiple.cu
+    examples/winsum/winsum.cu
     PARENT_SCOPE
 )
