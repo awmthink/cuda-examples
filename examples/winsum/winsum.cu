@@ -4,6 +4,8 @@
 #include "common/cuda_helper.h"
 #include "common/gpu_timer.h"
 
+// window_sum 用来计算一个长度为n的数组，每个位置上的window sum
+// 线程块中的每个线程计算对应一个输出位置上的window sum
 __global__ void window_sum(float *input, float *output, int n, int winsize) {
   int id = blockDim.x * blockIdx.x + threadIdx.x;
   if (id < n) {
@@ -15,6 +17,8 @@ __global__ void window_sum(float *input, float *output, int n, int winsize) {
   }
 }
 
+// window_sum_shared 使用了共享内存来存储输入数据
+// 使得一个线程块中的所有线程可以读取共享内存中的数据，避免全局内存读取
 __global__ void window_sum_shared(float *input, float *output, int n,
                                   int winsize) {
   int tid = threadIdx.x;

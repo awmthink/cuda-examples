@@ -9,8 +9,8 @@
 ## Examples
 
 - [Hello](./examples/hello/README.md)
-- [Memory Management](./examples/memory/README.md)
-- [Matrix Multiple](./examples/matrix_multiple/README.md)
+- [Window Sum](./examples/winsum/README.md)
+- [Matrix Multiple](./examples/matmul/REAME.md)
 - [Reduce](./examples/reduce/README.md)
 - [SCAN](./examples/scan/README.md)
 - [Histogram]()
