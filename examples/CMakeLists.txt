@@ -1,6 +1,7 @@
 set(examples 
     examples/hello/hello.cu
     examples/device/device_query.cpp
+    examples/vector_add/vector_add.cu
     examples/reduce/reduce_sum.cu
     examples/transpose/matrix_transpose.cu
     examples/matmul/matmul.cu

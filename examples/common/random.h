@@ -28,4 +28,19 @@ void FillSequenceNumbers(std::vector<int>& array, int start = 0) {
   std::iota(array.begin(), array.end(), start);
 }
 
+template <typename T>
+void PrintElements(const std::vector<T>& vec, size_t num = 0) {
+  if (vec.empty()) {
+    return;
+  }
+  if (num == 0) {
+    num = vec.size();
+  }
+  std::cout << "[" << vec.front();
+  for (size_t i = 1; i != vec.size() && i < num; ++i) {
+    std::cout << ", " << vec[i];
+  }
+  std::cout << "]" << std::endl;
+}
+
 #endif  // EXAMPLES_COMMON_RANDOM_H_
