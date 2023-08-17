@@ -19,8 +19,7 @@ __global__ void window_sum(float *input, float *output, int n, int winsize) {
 
 // window_sum_shared 使用了共享内存来存储输入数据
 // 使得一个线程块中的所有线程可以读取共享内存中的数据，避免全局内存读取
-__global__ void window_sum_shared(float *input, float *output, int n,
-                                  int winsize) {
+__global__ void window_sum_shared(float *input, float *output, int n, int winsize) {
   int tid = threadIdx.x;
   int gid = blockDim.x * blockIdx.x + threadIdx.x;
   int input_size = n + winsize - 1;
@@ -56,14 +55,14 @@ int main() {
   std::iota(h_input.begin(), h_input.end(), 0);
   constexpr int output_len = length - winsize + 1;
 
-  int device_id = 6;
-  checkCudaErrors(cudaSetDevice(device_id));
+  // int device_id = 6;
+  // checkCudaErrors(cudaSetDevice(device_id));
 
   float *d_input, *d_output;
   checkCudaErrors(cudaMalloc(&d_input, length * sizeof(float)));
   checkCudaErrors(cudaMalloc(&d_output, output_len * sizeof(float)));
-  checkCudaErrors(cudaMemcpy(d_input, h_input.data(), sizeof(float) * length,
-                             cudaMemcpyHostToDevice));
+  checkCudaErrors(
+      cudaMemcpy(d_input, h_input.data(), sizeof(float) * length, cudaMemcpyHostToDevice));
 
   int threads_per_block = 256;
   int blocks = (output_len + threads_per_block - 1) / threads_per_block;
@@ -71,23 +70,21 @@ int main() {
 
   GpuTimer timer;
   timer.Start();
-  window_sum<<<blocks, threads_per_block>>>(d_input, d_output, output_len,
-                                            winsize);
+  window_sum<<<blocks, threads_per_block>>>(d_input, d_output, output_len, winsize);
   cudaDeviceSynchronize();
   timer.Stop();
   std::cout << "window sum time: " << timer.Elapsed() << std::endl;
 
   timer.Start();
-  window_sum_shared<<<blocks, threads_per_block, shared_size>>>(
-      d_input, d_output, output_len, winsize);
+  window_sum_shared<<<blocks, threads_per_block, shared_size>>>(d_input, d_output, output_len,
+                                                                winsize);
   cudaDeviceSynchronize();
   timer.Stop();
   std::cout << "window sum (shared) time: " << timer.Elapsed() << std::endl;
 
   std::vector<float> h_output(output_len);
-  checkCudaErrors(cudaMemcpy(h_output.data(), d_output,
-                             sizeof(float) * output_len,
-                             cudaMemcpyDeviceToHost));
+  checkCudaErrors(
+      cudaMemcpy(h_output.data(), d_output, sizeof(float) * output_len, cudaMemcpyDeviceToHost));
   for (auto out : h_output) {
     std::cout << out << ", ";
   }

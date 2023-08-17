@@ -6,5 +6,10 @@ set(examples
     examples/transpose/matrix_transpose.cu
     examples/matmul/matmul.cu
     examples/winsum/winsum.cu
+    examples/scan/blelloch_scan.cu
+    examples/scan/hillis_steele_scan.cu
+    examples/histogram/histo.cu
+    examples/stream/async_stream.cu
+    examples/warp_shuffle/shuffle.cu
     PARENT_SCOPE
 )

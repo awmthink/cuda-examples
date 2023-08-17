@@ -83,8 +83,7 @@ void FillRandomNum(std::vector<float> &v) {
 }
 
 // AverageDiff 计算两个向量的平均差异
-float AverageDiff(const std::vector<float> &lhs,
-                  const std::vector<float> &rhs) {
+float AverageDiff(const std::vector<float> &lhs, const std::vector<float> &rhs) {
   float sum = 0;
   for (int i = 0; i < lhs.size(); ++i) {
     sum += std::fabs(lhs[i] - rhs[i]);
@@ -94,7 +93,7 @@ float AverageDiff(const std::vector<float> &lhs,
 
 int main() {
   // 检查Cuda设备的可用情况
-  checkCudaDevice();
+  // checkCudaDevice();
 
   constexpr int m = 512;
   constexpr int k = 256;
@@ -121,14 +120,11 @@ int main() {
   checkCudaErrors(cudaMalloc(&d_b, sizeof(float) * b.size()));
   checkCudaErrors(cudaMalloc(&d_c, sizeof(float) * c.size()));
 
-  checkCudaErrors(cudaMemcpy(d_a, a.data(), sizeof(float) * a.size(),
-                             cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaMemcpy(d_b, b.data(), sizeof(float) * b.size(),
-                             cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(d_a, a.data(), sizeof(float) * a.size(), cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(d_b, b.data(), sizeof(float) * b.size(), cudaMemcpyHostToDevice));
 
   dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
-  dim3 gridDim((n + blockDim.x - 1) / blockDim.x,
-               (m + blockDim.y - 1) / blockDim.y);
+  dim3 gridDim((n + blockDim.x - 1) / blockDim.x, (m + blockDim.y - 1) / blockDim.y);
 
   // 使用MatMulV0来进行矩阵乘法计算
   timer.Start();
@@ -140,16 +136,15 @@ int main() {
 
   // 使用MatMulV1来进行矩阵乘法计算
   timer.Start();
-  MatMulV1<<<gridDim, blockDim, BLOCK_SIZE * BLOCK_SIZE * 2 * sizeof(float)>>>(
-      d_a, d_b, d_c, m, k, n);
+  MatMulV1<<<gridDim, blockDim, BLOCK_SIZE * BLOCK_SIZE * 2 * sizeof(float)>>>(d_a, d_b, d_c, m, k,
+                                                                               n);
   cudaDeviceSynchronize();
   timer.Stop();
   printf("matmul gpu v1 time: %f ms\n", timer.Elapsed());
   checkLastCudaError();
 
   // 往Host侧拷贝回矩阵计算的结果
-  checkCudaErrors(cudaMemcpy(c.data(), d_c, sizeof(float) * c.size(),
-                             cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(c.data(), d_c, sizeof(float) * c.size(), cudaMemcpyDeviceToHost));
 
   // 检查计算结果的正确性
   float diff = AverageDiff(c, c_cpu);

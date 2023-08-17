@@ -1,6 +1,7 @@
 #ifndef EXAMPLES_COMMON_RANDOM_H_
 #define EXAMPLES_COMMON_RANDOM_H_
 
+#include <iostream>
 #include <random>
 #include <vector>
 
@@ -8,7 +9,7 @@
 void FillRandomNumbers(std::vector<float>& array, float min = -1.0f,
                        float max = 1.0f, int64_t seed = 0L) {
   std::default_random_engine generator(seed);
-  std::normal_distribution<float> distribution(min, max);
+  std::uniform_real_distribution<float> distribution(min, max);
   for (auto& num : array) {
     num = distribution(generator);
   }
@@ -41,6 +42,25 @@ void PrintElements(const std::vector<T>& vec, size_t num = 0) {
     std::cout << ", " << vec[i];
   }
   std::cout << "]" << std::endl;
+}
+
+template <typename T>
+static void PrintElements2D(const std::vector<T>& matrix, int cols,
+                            int max_rows = 5, int max_cols = 5) {
+  int num_rows = 0;
+  for (decltype(matrix.size()) i = 0; i < matrix.size(); i++) {
+    if (i > 0 && i % cols == 0) {
+      std::cout << std::endl;
+      ++num_rows;
+    }
+    if (i % cols >= max_cols) {
+      continue;
+    }
+    if (num_rows >= max_rows) {
+      break;
+    }
+    std::cout << matrix[i] << "\t";
+  }
 }
 
 #endif  // EXAMPLES_COMMON_RANDOM_H_
